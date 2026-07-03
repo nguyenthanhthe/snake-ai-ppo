@@ -12,6 +12,7 @@ Usage:
 Press Ctrl+C to stop early (model will still be saved).
 """
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import time
 import torch
 import numpy as np

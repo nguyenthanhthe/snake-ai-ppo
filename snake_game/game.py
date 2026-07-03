@@ -59,6 +59,10 @@ class SnakeGame:
         self.dir_idx = self._turn(self.dir_idx, action)
         dx, dy = _DIRS[self.dir_idx]
         head = self.snake[-1]
+
+        # Manhattan distance to food BEFORE moving
+        dist_old = abs(head[0] - self.food[0]) + abs(head[1] - self.food[1])
+
         new_head = (head[0] + dx, head[1] + dy)
 
         # 2. check food collision
@@ -74,7 +78,16 @@ class SnakeGame:
 
         # 4. check death
         self._done = self._check_death(new_head)
-        reward = 10.0 if ate else (-10.0 if self._done else 0.0)
+
+        # 5. reward — shaped
+        if ate:
+            reward = 10.0
+        elif self._done:
+            reward = -10.0
+        else:
+            # Distance shaping: closer to food = positive, further = negative
+            dist_new = abs(new_head[0] - self.food[0]) + abs(new_head[1] - self.food[1])
+            reward = 1.0 if dist_new < dist_old else (-1.0 if dist_new > dist_old else 0.0)
         return self._get_state(), reward, self._done
 
     def render(self):
