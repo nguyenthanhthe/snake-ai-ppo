@@ -1,9 +1,8 @@
 """
-Train PPO agent to play Snake.
+Train PPO agent to play Snake — parallel environments.
 
-Shows live visualizer:
-  - Pygame window showing the snake playing (every N episodes)
-  - Matplotlib chart with reward/score curves
+Architecture:
+  VecEnv (8 envs) → PPO (GAE + clipped surrogate) → live visualizer
 
 Usage:
     conda activate snake-ai-ppo
@@ -13,78 +12,107 @@ Press Ctrl+C to stop early (model will still be saved).
 """
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
 import time
 import torch
 import numpy as np
 
 from config import Config
-from snake_game.env import SnakeEnv
+from snake_game.vec_env import VecEnv
 from agent.ppo import PPO
+from agent.storage import RolloutBuffer
 from utils.vis import LiveVisualizer
 
 
 def train(cfg: Config):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"🔥 Device: {device}  ({torch.cuda.get_device_name(0) if device.type == 'cuda' else 'CPU'})")
+    gpu_name = torch.cuda.get_device_name(0) if device.type == "cuda" else "CPU"
+    print(f"🔥 Device: {device}  ({gpu_name})")
+    print(f"🐍 Envs: {cfg.n_envs} parallel | Grid: {cfg.grid_size}×{cfg.grid_size}")
 
-    env = SnakeEnv(grid_size=cfg.grid_size, cell_size=cfg.cell_size,
-                   max_steps=cfg.max_steps)
+    # Parallel environment
+    vec_env = VecEnv(cfg.n_envs, cfg.grid_size, cfg.cell_size, cfg.max_steps)
+
+    # Agent
     agent = PPO(n_inputs=cfg.n_inputs, n_actions=cfg.n_actions, device=device,
                 lr=cfg.lr, gamma=cfg.gamma, gae_lambda=cfg.gae_lambda,
                 clip_eps=cfg.clip_eps, ent_coef=cfg.ent_coef, vf_coef=cfg.vf_coef,
                 max_grad_norm=cfg.max_grad_norm, n_epochs=cfg.n_epochs,
                 batch_size=cfg.batch_size)
 
-    os.makedirs(cfg.model_dir, exist_ok=True)
+    # Rollout buffer
+    buffer = RolloutBuffer(cfg.n_envs, cfg.n_steps, cfg.n_inputs, device)
 
     # Visualizer
-    viz = LiveVisualizer(window_size=100)
+    viz = LiveVisualizer(window_size=25)
 
-    # Stats
-    episode_rewards = []
+    # Checkpoints
+    os.makedirs(cfg.model_dir, exist_ok=True)
+
+    # ── stats ──────────────────────────────────────────────────────────
+    total_episodes = 0
     best_score = -1
+    episode_returns = []   # episodic return per finished episode
+    episode_scores = []    # score at episode end
     start_time = time.time()
+    timesteps = 0
+
+    # Initial reset
+    states = vec_env.reset()
 
     try:
-        for ep in range(1, cfg.total_episodes + 1):
-            state = env.reset()
-            ep_reward = 0.0
-            # Show game window every `render_interval` episodes
-            show_game = (ep % cfg.render_interval == 0)
+        update_idx = 0
+        while total_episodes < cfg.total_episodes:
+            update_idx += 1
 
-            while True:
-                action, log_prob, value = agent.get_action(state)
-                next_state, reward, done, _ = env.step(action)
-                # Render game if this episode is being shown
-                if show_game:
-                    env.render()
-                agent.store(state, action, reward, done, log_prob, value)
+            # ── collect rollout ──────────────────────────────────────
+            for step in range(cfg.n_steps):
+                s = torch.as_tensor(states, dtype=torch.float32, device=device)
+                actions, log_probs, values = agent.get_actions(s)
+                next_states, rewards, dones, _ = vec_env.step(actions)
 
-                state = next_state
-                ep_reward += reward
+                buffer.store(states, actions, rewards, dones, log_probs, values)
+                states = next_states
+                timesteps += cfg.n_envs
 
-                if done:
-                    agent.update(last_value=0.0)
-                    break
+                # Track finished episodes
+                for i in range(cfg.n_envs):
+                    if dones[i]:
+                        total_episodes += 1
+                        episode_returns.append(buffer.rewards[step, i].item()
+                                                if step > 0 else 0.0)
+                        episode_scores.append(vec_env.get_scores()[i])
 
-            episode_rewards.append(ep_reward)
-            if env.score > best_score:
-                best_score = env.score
+            # ── PPO update ────────────────────────────────────────────
+            last_s = torch.as_tensor(states, dtype=torch.float32, device=device)
+            with torch.no_grad():
+                _, last_val = agent.net(last_s)
+            agent.update(buffer, last_val)
 
-            # ── update live chart ────────────────────────────────────
-            viz.update(ep, ep_reward, env.score)
+            # Track best score across all envs
+            current_scores = vec_env.get_scores()
+            best_score = max(best_score, max(current_scores))
+
+            # Render a random env
+            if update_idx % cfg.render_interval == 0:
+                vec_env.render_one(np.random.randint(0, cfg.n_envs))
+
+            # ── chart ────────────────────────────────────────────────
+            if episode_returns:
+                avg_ret = np.mean(episode_returns[-cfg.n_envs:])
+                viz.update(update_idx, avg_ret, best_score)
 
             # ── console log ──────────────────────────────────────────
-            if ep % cfg.log_interval == 0:
-                avg = np.mean(episode_rewards[-cfg.log_interval:])
-                elapsed = time.time() - start_time
-                print(f"Ep {ep:5d} | avg reward {avg:+6.1f} | best score {best_score:2d} | "
-                      f"eps/sec {cfg.log_interval / elapsed:.1f} | device {device}")
-                start_time = time.time()
+            if update_idx % cfg.log_interval == 0:
+                avg_ret = np.mean(episode_returns[-cfg.n_envs * 2:]) if episode_returns else 0.0
+                eps_per_sec = total_episodes / (time.time() - start_time) if time.time() > start_time else 0
+                print(f"Upd {update_idx:4d} | ep {total_episodes:5d}/{cfg.total_episodes} | "
+                      f"avg_ret {avg_ret:+7.2f} | best {best_score:2d} | "
+                      f"{eps_per_sec:.1f} ep/s | {timesteps} steps")
 
             # ── save checkpoint ──────────────────────────────────────
-            if ep % cfg.save_interval == 0:
-                path = os.path.join(cfg.model_dir, f"ppo_snake_{ep}.pt")
+            if update_idx % cfg.save_interval == 0:
+                path = os.path.join(cfg.model_dir, f"ppo_snake_upd{update_idx}.pt")
                 torch.save(agent.net.state_dict(), path)
                 print(f"💾 Saved {path}")
 
@@ -96,21 +124,23 @@ def train(cfg: Config):
     torch.save(agent.net.state_dict(), final_path)
     print(f"💾 Final model saved → {final_path}")
 
-    # Show a final game with rendering
+    # ── final demo ──────────────────────────────────────────────────
     print("🎮 Showing final agent performance...")
-    state = env.reset()
+    env = vec_env.envs[0]
+    env.game.reset()
     done = False
     while not done:
-        s = torch.as_tensor(state, dtype=torch.float32, device=device)
+        s = torch.as_tensor(env.game._get_state(), dtype=torch.float32, device=device)
         with torch.no_grad():
             logits, _ = agent.net(s.unsqueeze(0))
             action = torch.distributions.Categorical(logits=logits).sample().item()
-        state, _, done, _ = env.step(action)
+        _, _, done, _ = env.step(action)
         env.render()
     print(f"🏆 Best score: {best_score} / {cfg.grid_size * cfg.grid_size - 1}")
+    print(f"📊 Total episodes: {total_episodes} | Total timesteps: {timesteps}")
 
     viz.close()
-    env.close()
+    vec_env.close()
 
 
 if __name__ == "__main__":

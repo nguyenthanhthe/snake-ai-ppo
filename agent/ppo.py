@@ -1,18 +1,15 @@
 """
 PPO (Proximal Policy Optimization) — from scratch.
-
-Implements the clipped surrogate objective with GAE and entropy bonus.
-Minimal, no wrappers, no framework dependencies beyond PyTorch.
+Parallel‑env ready: supports batched forward + step‑based update.
 """
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from agent.model import ActorCritic
-from agent.storage import RolloutBuffer
 
 
 class PPO:
-    """PPO trainer.  Maintains its own network and optimizer."""
+    """PPO trainer with vectorised environment support."""
 
     def __init__(self, n_inputs: int, n_actions: int, device: torch.device,
                  lr: float = 3e-4, gamma: float = 0.99, gae_lambda: float = 0.95,
@@ -30,56 +27,26 @@ class PPO:
 
         self.net = ActorCritic(n_inputs, n_actions).to(device)
         self.optimizer = optim.Adam(self.net.parameters(), lr=lr)
-        self.buffer = RolloutBuffer()
 
-    # ── rollout ──────────────────────────────────────────────────────────
-
-    def get_action(self, state):
-        """Sample action from policy.  Returns (action, log_prob, value)."""
-        s = torch.as_tensor(state, dtype=torch.float32, device=self.device)
+    def get_actions(self, states: torch.Tensor):
+        """
+        Batched forward.  Returns (actions, log_probs, values).
+        states: (n_envs, obs_dim) tensor on device.
+        """
         with torch.no_grad():
-            logits, value = self.net(s.unsqueeze(0))
+            logits, values = self.net(states)
             dist = torch.distributions.Categorical(logits=logits)
-            action = dist.sample()
-            log_prob = dist.log_prob(action)
-        return action.item(), log_prob.item(), value.item()
+            actions = dist.sample()
+            log_probs = dist.log_prob(actions)
+        return actions.cpu().numpy(), log_probs.cpu().numpy(), values.cpu().numpy()
 
-    def store(self, state, action, reward, done, log_prob, value):
-        self.buffer.add(state, action, reward, done, log_prob, value)
-
-    # ── update ───────────────────────────────────────────────────────────
-
-    def update(self, last_value: float):
-        """Compute advantages with GAE and perform PPO update."""
-        states, actions, rewards, dones, old_log_probs, values = \
-            self.buffer.get(self.device)
+    def update(self, buffer, last_values: torch.Tensor):
+        """Compute GAE and perform PPO mini‑batch update."""
+        states, actions, old_log_probs, advantages, returns = \
+            buffer.compute_gae(last_values, self.gamma, self.gae_lambda)
 
         n = len(states)
-        if n < 4:  # too short for meaningful GAE; skip
-            self.buffer.clear()
-            return
-
-        # Append the bootstrap value for GAE computation
-        values_all = torch.cat([values, torch.tensor([last_value], device=self.device)])
-
-        # GAE: δ_t = r_t + γ V(s_{t+1}) * (1 - done_t) - V(s_t)
-        advantages = torch.zeros_like(rewards)
-        gae = 0.0
-        for t in reversed(range(len(rewards))):
-            delta = rewards[t] + self.gamma * values_all[t + 1] * (1 - dones[t]) - values_all[t]
-            gae = delta + self.gamma * self.gae_lambda * (1 - dones[t]) * gae
-            advantages[t] = gae
-
-        returns = advantages + values
-
-        # Normalise advantages (stabilises training)
-        if len(advantages) > 1:
-            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
-        else:
-            advantages = advantages - advantages.mean()  # std is 0, avoid division
-
-        # Mini‑batch PPO update
-        indices = torch.randperm(n)
+        indices = torch.randperm(n, device=self.device)
         for _ in range(self.n_epochs):
             for start in range(0, n, self.batch_size):
                 idx = indices[start:start + self.batch_size]
@@ -94,7 +61,7 @@ class PPO:
                 log_probs = dist.log_prob(batch_a)
                 entropy = dist.entropy().mean()
 
-                # Ratio: π_θ(a|s) / π_θ_old(a|s)
+                # Ratio
                 ratio = torch.exp(log_probs - batch_old_log)
 
                 # Clipped surrogate
@@ -105,7 +72,7 @@ class PPO:
                 # Value loss
                 value_loss = nn.MSELoss()(values_pred, batch_ret)
 
-                # Total loss
+                # Total
                 loss = policy_loss + self.vf_coef * value_loss - self.ent_coef * entropy
 
                 self.optimizer.zero_grad()
@@ -113,4 +80,4 @@ class PPO:
                 nn.utils.clip_grad_norm_(self.net.parameters(), self.max_grad_norm)
                 self.optimizer.step()
 
-        self.buffer.clear()
+        buffer.clear()
