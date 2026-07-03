@@ -1,125 +1,93 @@
-# 🐍 Snake AI — Deep Reinforcement Learning (PPO/A2C from scratch)
+# 🐍 Snake AI — Deep Reinforcement Learning (PPO from scratch)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Build a **deep reinforcement learning** agent that plays **Snake** perfectly.
-Inspired by [Code Bullet](https://youtu.be/3bhP7zuiFmQ) and [Alex Petrenko](https://www.youtube.com/watch?v=3bhP7zuiFmQ),
-implemented **from scratch** using PyTorch — no Stable-Baselines, no RL libraries.
+Deep RL agent plays **Snake** using **Proximal Policy Optimization (PPO)** — implemented **from scratch** with PyTorch.
+Inspired by [Code Bullet](https://youtu.be/3bhP7zuiFmQ), [Jack of Some](https://www.youtube.com/watch?v=i0Pkgtbh1xw), and [Alex Petrenko](https://www.youtube.com/watch?v=bh_5aIqVTUY).
 
 ---
 
-## 🎯 Goal
+## 🎯 Milestones
 
-Train a neural network to play Snake **from raw pixels** (like a human would)
-using **Proximal Policy Optimization (PPO)** and/or **Advantage Actor-Critic (A2C)**.
-
-| Grid       | Target                 | Status |
-|:-----------|:-----------------------|:-------|
-| 6×6        | Max score (35)         | ⏳     |
-| 10×10      | Max score (99)         | ⏳     |
-| 20×20      | Max score (399)        | ⏳     |
+| Grid   | Target     | Status |
+|:-------|:-----------|:-------|
+| 6×6    | Score 35   | ⏳     |
+| 10×10  | Score 99   | ⏳     |
+| 20×20  | Score 399  | 🎯     |
 
 ---
 
-## 🧠 Approach
-
-### Why PPO over DQN?
-
-- **Epsilon-greedy** in DQN is fatal for Snake — a single random move late-game almost always kills.
-- **PPO/A2C** sample from a **probability distribution** over actions, so exploration is built-in naturally.
-- PPO can train on **full game trajectories** instead of small (e.g. 16-step) windows, vastly improving data efficiency on larger grids.
-
-### Architecture (planned)
+## 🧠 Architecture
 
 ```
-                 ┌──────────────┐
-                 │  Game State  │
-                 │  (pixels or  │
-                 │   features)  │
-                 └──────┬───────┘
-                        ↓
-              ┌──────────────────┐
-              │  CNN (vision)    │  ← train the network's "eyes"
-              │  or feature MLP  │
-              └──────────────────┘
-                        ↓
-              ┌──────────────────┐
-              │  Actor (policy)  │──→ action probabilities
-              │  Critic (value)  │──→ state value estimate
-              └──────────────────┘
+SnakeGame (Pygame)          → 11‑dim feature vector
+       ↓
+Actor‑Critic (MLP 128×2)   → action logits, state value
+       ↓
+PPO (GAE + clipped obj.)   → update policy
 ```
 
-Two modes:
-1. **Pixel input** — CNN processes the full game screen (harder, more general).
-2. **Feature input** — hand-crafted features (direction, danger, food-relative) — faster, good baseline.
+**Input**: 11 features (danger, direction, food-relative)  
+**Actions**: STRAIGHT / TURN_LEFT / TURN_RIGHT  
+**PPO**: GAE(λ=0.95), clip ε=0.2, entropy bonus
 
 ---
 
-## 📁 Project structure
+## 📁 Structure
 
 ```
 snake-ai-ppo/
-├── snake_game/          # Snake environment (Pygame + Gym-like API)
-│   ├── game.py          # Core game logic
-│   └── ...
-├── agent/               # RL algorithms
-│   ├── ppo.py           # PPO implementation
-│   ├── a2c.py           # A2C implementation
-│   ├── model.py         # Neural network architectures
-│   └── storage.py       # Rollout buffer / experience replay
-├── train.py             # Training entry point
-├── test.py              # Run a pretrained agent
-├── utils/               # Visualization, logging, metrics
+├── snake_game/
+│   ├── game.py          # Core game (Pygame, grid-based)
+│   └── env.py           # Gym‑compatible wrapper
+├── agent/
+│   ├── model.py         # Actor‑Critic (shared trunk)
+│   ├── ppo.py           # PPO algorithm (GAE + clipped surrogate)
+│   └── storage.py       # Rollout buffer
+├── config.py            # Hyperparameters
+├── train.py             # Training loop
+├── test.py              # Watch trained agent
 ├── requirements.txt
-├── README.md
-└── LICENSE
+└── README.md
 ```
 
 ---
 
-## 🚀 Getting started
+## 🚀 Quick start
 
 ```bash
-# Clone
-git clone https://github.com/nguyenthanhthe/snake-ai-ppo.git
-cd snake-ai-ppo
+# 1. Activate env
+conda activate snake-ai-ppo
 
-# Install dependencies
-pip install torch pygame numpy matplotlib
+# 2. Train (Ctrl+C to stop)
+python train.py
 
-# Train on 10×10 grid
-python train.py --grid 10 --algo ppo
-
-# Watch a trained agent
-python test.py --checkpoint runs/ppo_10x10/best.pt
+# 3. Watch the agent (after training)
+python test.py --model models/ppo_snake_final.pt
 ```
 
 ---
 
-## 📈 Progress tracking
+## 🛠 Setup (new env)
 
-- Training metrics logged to console & CSV.
-- Real-time pygame window showing agent gameplay.
-- Periodic evaluation on held-out games.
-- Checkpoints saved automatically.
+```bash
+mamba create -n snake-ai-ppo python=3.12 numpy matplotlib -c conda-forge -y
+mamba install -n snake-ai-ppo pygame -c conda-forge -y
+pip install torch==2.12.1 torchvision==0.27.1 --index-url https://download.pytorch.org/whl/cu126
+```
 
 ---
 
 ## 📚 References
 
 - [Code Bullet — AI learns to play Snake](https://youtu.be/3bhP7zuiFmQ)
-- [Alex Petrenko — Snake Perfect Score PPO](https://www.youtube.com/watch?v=3bhP7zuiFmQ)
-- [Proximal Policy Optimization (Schulman et al., 2017)](https://arxiv.org/abs/1707.06347)
-- [Asynchronous Advantage Actor-Critic (Mnih et al., 2016)](https://arxiv.org/abs/1602.01783)
+- [Jack of Some — Neural Network Learns Snake with DQN & A2C](https://www.youtube.com/watch?v=i0Pkgtbh1xw)
+- [Alex Petrenko — Advantage Actor-Critic solves 6×6 Snake](https://www.youtube.com/watch?v=bh_5aIqVTUY)
+- [PPO paper (Schulman et al., 2017)](https://arxiv.org/abs/1707.06347)
 - [OpenAI Spinning Up — PPO](https://spinningup.openai.com/en/latest/algorithms/ppo.html)
-- [Ilya Kostrikov — pytorch-a2c-ppo-acktr](https://github.com/ikostrikov/pytorch-a2c-ppo-acktr)
 
 ---
 
 ## 📄 License
 
-MIT — do whatever you want, just give credit.
-
----
-
-*Built from scratch with ❤️ and a lot of patience.*
+MIT
