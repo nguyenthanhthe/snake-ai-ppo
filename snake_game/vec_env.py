@@ -1,9 +1,6 @@
 """
 Vectorized environment — runs N SnakeGame instances in lockstep.
-
-Supports two observation modes:
-  - "features" (default) — 11‑dim vector
-  - "grid" — (4, H, W) grid observation for CNN
+Supports rectangular grid shapes and grid maze observations.
 """
 import numpy as np
 from snake_game.env import SnakeEnv
@@ -13,18 +10,21 @@ from snake_game.grid_obs import make_grid_obs
 class VecEnv:
     """N environments running synchronously."""
 
-    def __init__(self, n_envs: int, grid_size: int = 10,
-                 cell_size: int = 40, max_steps: int = 200,
-                 obs_mode: str = "features"):
+    def __init__(self, n_envs: int, grid_width: int = 40, grid_height: int = 22,
+                 cell_size: int = 30, max_steps: int = 1000,
+                 obs_mode: str = "grid"):
         self.n_envs = n_envs
-        self.grid_size = grid_size
+        self.grid_width = grid_width
+        self.grid_height = grid_height
         self.obs_mode = obs_mode
-        self.envs = [SnakeEnv(grid_size, cell_size, max_steps)
+        self.envs = [SnakeEnv(grid_width, grid_height, cell_size, max_steps)
                      for _ in range(n_envs)]
 
     @property
     def obs_dim(self):
-        return 11 if self.obs_mode == "features" else (4, self.grid_size, self.grid_size)
+        if self.obs_mode == "features":
+            return 14
+        return (5, self.grid_height, self.grid_width)
 
     @property
     def obs_shape(self):
@@ -37,17 +37,22 @@ class VecEnv:
         if self.obs_mode == "features":
             return env.game._get_state()
         g = env.game
-        return make_grid_obs(g.snake[-1], g.snake, g.food, self.grid_size)
+        # Pass rectangular dimensions and current maze layout
+        return make_grid_obs(g.snake[-1], g.snake, g.food, 
+                             self.grid_height, self.grid_width,
+                             dir_idx=g.dir_idx, maze=g.maze)
 
     # ── API ──────────────────────────────────────────────────────────
 
     def reset(self):
-        """Reset all envs.  Returns (n_envs, *obs_shape) float32 array."""
+        """Reset all envs. Returns (n_envs, *obs_shape) float32 array."""
+        for e in self.envs:
+            e.reset()
         return np.array([self._obs(e) for e in self.envs], dtype=np.float32)
 
     def step(self, actions: np.ndarray):
         """
-        Step all envs.  Returns (states, rewards, dones, infos).
+        Step all envs. Returns (states, rewards, dones, infos).
         Done envs are auto‑reset (terminal transition still returned).
         """
         states, rewards, dones, infos = [], [], [], []
@@ -59,10 +64,8 @@ class VecEnv:
             if d:
                 states.append(self._obs(env))  # obs of terminal state
                 env.reset()
-                # After reset, the next step will see the fresh state
             else:
                 states.append(self._obs(env))
-        dtype = np.float32 if self.obs_mode == "features" else np.float32
         return (np.array(states, dtype=np.float32),
                 np.array(rewards, dtype=np.float32),
                 np.array(dones, dtype=np.float32),

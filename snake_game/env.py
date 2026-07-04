@@ -1,15 +1,6 @@
 """
 Gym‑compatible wrapper for SnakeGame.
-
-State space:  Box(11,)   — 11 feature dimensions  (see below)
-Action space: Discrete(3) — STRAIGHT (0), LEFT (1), RIGHT (2)
-
-11 features:
-  0  danger straight ahead
-  1  danger on left
-  2  danger on right
-  3–6 one‑hot current direction  (UP,RIGHT,DOWN,LEFT)
-  7–10 food direction relative to head  (LEFT,RIGHT,UP,DOWN)
+Supports rectangular grid maze.
 """
 from typing import Optional
 import numpy as np
@@ -17,18 +8,19 @@ from snake_game.game import SnakeGame
 
 
 class SnakeEnv:
-    """Minimal Gym‑compatible wrapper."""
+    """Gym‑compatible wrapper for SnakeGame with maze."""
 
-    def __init__(self, grid_size: int = 10, cell_size: int = 40,
+    def __init__(self, grid_width: int = 40, grid_height: int = 22, cell_size: int = 30,
                  max_steps: Optional[int] = None):
-        self.game = SnakeGame(grid_size, cell_size)
-        self.grid_size = grid_size
-        self.max_steps = max_steps
+        self.game = SnakeGame(grid_width, grid_height, cell_size)
+        self.grid_width = grid_width
+        self.grid_height = grid_height
+        
+        # Max steps to prevent loops
+        self.max_steps = max_steps or (grid_width * grid_height * 2)
         self._steps = 0
 
         # Gym‑like metadata
-        self.observation_space = type("Box", (), {
-            "shape": (11,), "low": 0.0, "high": 1.0})
         self.action_space = type("Discrete", (), {"n": 3})
 
     def reset(self):
@@ -38,7 +30,6 @@ class SnakeEnv:
     def step(self, action: int):
         self._steps += 1
         state, reward, done = self.game.step(action)
-        # Truncate episode if max_steps reached (prevents infinite looping)
         if self.max_steps and self._steps >= self.max_steps:
             done = True
         return state, reward, done, {}
@@ -59,8 +50,8 @@ class SnakeEnv:
     def play_human(self):
         """Let a human play with arrow keys — useful for testing."""
         import pygame
-        self.game.reset()
-        self.game.render()
+        self.reset()
+        self.render()
         running = True
         while running:
             for ev in pygame.event.get():
@@ -72,9 +63,9 @@ class SnakeEnv:
                     if ev.key == pygame.K_LEFT:  action = 1  # left
                     if ev.key == pygame.K_RIGHT: action = 2  # right
                     if action is not None:
-                        _, _, done = self.game.step(action)
+                        _, _, done, _ = self.step(action)
                         if done:
                             print(f"Game over! Score: {self.game.score}")
-                            self.game.reset()
-                    self.game.render()
+                            self.reset()
+                    self.render()
         pygame.quit()
