@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://www.youtube.com/watch?v=KlxV_QhXIvg" target="_blank">
-    <img src="https://img.youtube.com/vi/KlxV_QhXIvg/maxresdefault.jpg" alt="Snake RL Demo Video" width="560" style="border-radius: 8px;">
+    <img src="https://img.youtube.com/vi/KlxV_QhXIvg/hqdefault.jpg" alt="Snake RL Demo Video" width="560" style="border-radius: 8px;">
   </a>
 </p>
 
