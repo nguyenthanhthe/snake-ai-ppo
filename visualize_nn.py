@@ -131,10 +131,10 @@ def draw_nn_visualizer(win, start_x, start_y, width, height, acts, net, font, bo
     x_h2 = start_x + 880
     x_out = start_x + 1100
 
-    y_coords_in = [start_y + 40 + i * 42 for i in range(20)]
-    y_coords_h1 = [start_y + 80 + i * 64 for i in range(12)]
-    y_coords_h2 = [start_y + 80 + i * 64 for i in range(12)]
-    y_coords_out = [start_y + 220 + i * 180 for i in range(3)]
+    y_coords_in = [start_y + 15 + i * 35 for i in range(20)]
+    y_coords_h1 = [start_y + 50 + i * 54 for i in range(12)]
+    y_coords_h2 = [start_y + 50 + i * 54 for i in range(12)]
+    y_coords_out = [start_y + 150 + i * 190 for i in range(3)]
 
     # ── Synapses (Weight Filtering & Alpha Blending) ──────────────────────────
     # Layer 1: Input -> Hidden 1
@@ -300,13 +300,13 @@ def main():
 
     # Fonts with clean anti-aliasing fallback (2x larger for SSAA)
     try:
-        font = pygame.font.SysFont("Segoe UI", 24)
-        bold_font = pygame.font.SysFont("Segoe UI", 28, bold=True)
-        title_font = pygame.font.SysFont("Segoe UI", 32, bold=True)
+        font = pygame.font.SysFont("Segoe UI", 28)
+        bold_font = pygame.font.SysFont("Segoe UI", 32, bold=True)
+        title_font = pygame.font.SysFont("Segoe UI", 38, bold=True)
     except:
-        font = pygame.font.SysFont("Arial", 24)
-        bold_font = pygame.font.SysFont("Arial", 28, bold=True)
-        title_font = pygame.font.SysFont("Arial", 32, bold=True)
+        font = pygame.font.SysFont("Arial", 28)
+        bold_font = pygame.font.SysFont("Arial", 32, bold=True)
+        title_font = pygame.font.SysFont("Arial", 38, bold=True)
 
     # Initialize environment with light theme (at 2x cell_size = 36 for SSAA)
     game = SnakeGame(grid_width=args.width, grid_height=args.height, cell_size=cell_size * 2, theme="light")
