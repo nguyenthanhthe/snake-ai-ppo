@@ -30,13 +30,14 @@ GREEN = (0, 255, 0)          # bright green for snake head
 class SnakeGame:
     """Snake game inside a randomized grid maze."""
 
-    def __init__(self, grid_width: int = 40, grid_height: int = 22, cell_size: int = 30):
+    def __init__(self, grid_width: int = 40, grid_height: int = 22, cell_size: int = 30, theme: str = "light"):
         self.grid_width = grid_width
         self.grid_height = grid_height
         self.cell_size = cell_size
         self.win_width = grid_width * cell_size
         self.win_height = grid_height * cell_size
         self.max_food_dist = None
+        self.theme = theme
 
         # PyGame screen (lazy initialization)
         self._screen = None
@@ -422,13 +423,26 @@ class SnakeGame:
 
     def _draw_frame(self):
         win = self._screen
-        win.fill(BLACK)
+        
+        # Color definitions depending on theme
+        if getattr(self, "theme", "light") == "light":
+            bg_color = (245, 245, 247)
+            grid_color = (230, 230, 235)
+            wall_border = (50, 50, 55)
+            wall_fill = (100, 100, 105)
+        else:
+            bg_color = BLACK
+            grid_color = (22, 22, 28)
+            wall_border = (0, 120, 150)
+            wall_fill = (45, 45, 50)
+            
+        win.fill(bg_color)
         
         # 1. Draw subtle background grid lines for a technical look
         for x in range(0, self.win_width, self.cell_size):
-            pygame.draw.line(win, (22, 22, 28), (x, 0), (x, self.win_height), 1)
+            pygame.draw.line(win, grid_color, (x, 0), (x, self.win_height), 1)
         for y in range(0, self.win_height, self.cell_size):
-            pygame.draw.line(win, (22, 22, 28), (0, y), (self.win_width, y), 1)
+            pygame.draw.line(win, grid_color, (0, y), (self.win_width, y), 1)
             
         # 2. Draw maze walls (grey block with glowing cyan/neon border)
         for y in range(self.grid_height):
@@ -436,12 +450,12 @@ class SnakeGame:
                 if self.maze[y, x] == 1:
                     rect = (x * self.cell_size + 1, y * self.cell_size + 1,
                             self.cell_size - 2, self.cell_size - 2)
-                    # Outer neon border
-                    pygame.draw.rect(win, (0, 120, 150), rect, border_radius=4)
-                    # Inner dark grey block
+                    # Outer wall border
+                    pygame.draw.rect(win, wall_border, rect, border_radius=4)
+                    # Inner fill block
                     inner_rect = (x * self.cell_size + 3, y * self.cell_size + 3,
                                   self.cell_size - 6, self.cell_size - 6)
-                    pygame.draw.rect(win, (45, 45, 50), inner_rect, border_radius=2)
+                    pygame.draw.rect(win, wall_fill, inner_rect, border_radius=2)
 
         # 3. Draw food (glossy red apple with stem and leaf)
         fx, fy = self.food
