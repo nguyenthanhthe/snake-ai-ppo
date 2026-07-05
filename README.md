@@ -121,3 +121,15 @@ The PPO agent was trained on an NVIDIA GeForce RTX 4050 Laptop GPU (via CUDA) fo
 * **[Detailed Vietnamese Research Report](docs/research_report_vi.md)**: Deep analysis of MDP, POMDP, State Aliasing, Potential-Based Reward Shaping (PBRS), and neural network architectures to fix looping behavior.
 * **[Deep Research Gemini 3.1 Pro Docx](docs/Generated%20with%20Deep%20Research%20Gemini%203.1%20Pro.docx)**: Extended research report on loop behavior in reinforcement learning.
 * **AlphaPhoenix Inspiration**: The space-filling safety overrides and dynamic tail-chase heuristics are inspired by the [BrianHaidet/AlphaPhoenix](https://github.com/BrianHaidet/AlphaPhoenix) project and the explanatory video [Why AI plays Snake like this (xkcd 356)](https://www.youtube.com/watch?v=TOpBcfbAgPg).
+
+---
+
+## Future Directions
+
+To further improve the agent's performance and generalizability, the following research and development directions are proposed:
+
+1. **Space-Filling Hamiltonian Cycles**: Integrate a mathematical Hamiltonian cycle finder (similar to Code Bullet and AlphaPhoenix) that guarantees the snake can always follow a closed loop covering the entire walkable grid space. This guarantees 100% safety even at maximum length.
+2. **Curriculum Learning**: Train the agent by starting with an obstacle-free board and gradually increasing obstacle density from 0% to 22% as average scores improve. This should stabilize early policy discovery.
+3. **Algorithm Comparisons (DQN vs. SAC vs. PPO)**: Implement and benchmark other reinforcement learning algorithms (such as Double Dueling DQN or Soft Actor-Critic) on the same 20-dimensional state vector to compare convergence speed and policy stability.
+4. **A* Search with Safety Cost Weights**: Replace the basic BFS pathfinder with an A* algorithm that weights cells near walls or snake segments with higher pathfinding costs, helping the agent find paths that are inherently safer.
+5. **Interactive Web Dashboard**: Compile the visualizer using Pyodide/WebAssembly or build a Next.js front-end with a FastAPI backend to allow users to interact with the neural network visualizer directly in their web browsers.
