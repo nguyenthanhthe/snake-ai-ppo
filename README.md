@@ -1,4 +1,4 @@
-# Snake AI: Deep Reinforcement Learning with AlphaPhoenix-Inspired Safety Guidance
+# Snake AI: Deep Reinforcement Learning with Geodesic Path Guidance
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -20,7 +20,7 @@ The project includes an interactive, high-fidelity neural network visualizer tha
 
 ## Core Architecture and Techniques
 
-### 1. AlphaPhoenix-Inspired 20-Dimensional State Vector
+### 1. 20-Dimensional State Vector with Safety Guidance
 Instead of processing raw screen pixels through a slow-to-converge Convolutional Neural Network (CNN), the state is represented as a structured 20-dimensional feature vector fed directly into a fast-converging MLP:
 
 * **Local Danger (3 features)**: Checks if the cells immediately straight, left, or right relative to the snake's direction contain walls, obstacles, or the snake's own body.
@@ -95,7 +95,7 @@ python visualize_nn.py --model models/ppo_snake_final.pt --delay 100
 
 The PPO agent was trained on an NVIDIA GeForce RTX 4050 Laptop GPU (via CUDA) for 50,672 episodes (24,420 updates).
 
-| Metric | CNN Model (Baseline) | MLP + BFS Guidance | MLP + BFS + AlphaPhoenix (Latest) |
+| Metric | CNN Model (Baseline) | MLP + BFS Guidance | MLP + BFS + Safety Guidance (Latest) |
 |--------|-----------------|---------------------|-----------------------------------|
 | **Input Features** | Raw Grid Pixels | 14-dimensional vector | **20-dimensional vector (with Safety & Tail-Chase)** |
 | **Best Score (Food Eaten)** | 1 | 29 | **51** |
@@ -120,3 +120,4 @@ The PPO agent was trained on an NVIDIA GeForce RTX 4050 Laptop GPU (via CUDA) fo
 
 * **[Detailed Vietnamese Research Report](docs/research_report_vi.md)**: Deep analysis of MDP, POMDP, State Aliasing, Potential-Based Reward Shaping (PBRS), and neural network architectures to fix looping behavior.
 * **[Deep Research Gemini 3.1 Pro Docx](docs/Generated%20with%20Deep%20Research%20Gemini%203.1%20Pro.docx)**: Extended research report on loop behavior in reinforcement learning.
+* **AlphaPhoenix Inspiration**: The space-filling safety overrides and dynamic tail-chase heuristics are inspired by the [BrianHaidet/AlphaPhoenix](https://github.com/BrianHaidet/AlphaPhoenix) project and the explanatory video [Why AI plays Snake like this (xkcd 356)](https://www.youtube.com/watch?v=TOpBcfbAgPg).
