@@ -149,7 +149,7 @@ def draw_nn_visualizer(win, start_x, start_y, width, height, acts, net, font, bo
             if abs(val) > 0.01:
                 intensity = max(0, min(1.0, abs_w * abs(val)))
                 thickness = min(6, int(intensity * 8) + 1)
-                glow = int(intensity * 180)
+                glow = int(intensity * 130)
                 color = (39, 120 + glow, 96) if weight > 0 else (120 + glow, 46, 50)
                 pygame.draw.line(win, color, (x_in, y_coords_in[i]), (x_h1, y_coords_h1[j_idx]), thickness)
             elif abs_w > 0.18:  # Faint structural lines for inactive connections
@@ -166,7 +166,7 @@ def draw_nn_visualizer(win, start_x, start_y, width, height, acts, net, font, bo
             if h1_act > 0.05:
                 intensity = max(0, min(1.0, abs_w * h1_act))
                 thickness = min(6, int(intensity * 8) + 1)
-                glow = int(intensity * 180)
+                glow = int(intensity * 130)
                 color = (39, 120 + glow, 96) if weight > 0 else (120 + glow, 46, 50)
                 pygame.draw.line(win, color, (x_h1, y_coords_h1[j_idx]), (x_h2, y_coords_h2[k_idx]), thickness)
             elif abs_w > 0.18:
@@ -183,7 +183,7 @@ def draw_nn_visualizer(win, start_x, start_y, width, height, acts, net, font, bo
             if h2_act > 0.05:
                 intensity = max(0, min(1.0, abs_w * h2_act))
                 thickness = min(6, int(intensity * 8) + 1)
-                glow = int(intensity * 180)
+                glow = int(intensity * 130)
                 color = (39, 120 + glow, 96) if weight > 0 else (120 + glow, 46, 50)
                 pygame.draw.line(win, color, (x_h2, y_coords_h2[k_idx]), (x_out, y_coords_out[o]), thickness)
             elif abs_w > 0.18:
