@@ -21,8 +21,7 @@ The project includes an interactive, high-fidelity neural network visualizer tha
 You can watch the real-time neural network visualizer and snake gameplay in action below:
 
 <p align="center">
-  <!-- Upload your recorded mp4 to a GitHub Issue/PR description box, copy the generated URL, and paste it in src below -->
-  <video src="YOUR_GITHUB_UPLOADED_VIDEO_URL" width="900" controls muted autoplay loop style="border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);"></video>
+  <video src="demo.mp4" width="900" controls muted autoplay loop style="border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);"></video>
 </p>
 
 ---
