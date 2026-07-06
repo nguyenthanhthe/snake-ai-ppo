@@ -21,7 +21,9 @@ The project includes an interactive, high-fidelity neural network visualizer tha
 You can watch the real-time neural network visualizer and snake gameplay in action below:
 
 <p align="center">
-  <video src="demo.mp4" width="900" controls muted autoplay loop style="border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);"></video>
+  <video src="https://github.com/nguyenthanhthe/snake-rl/raw/main/demo.mp4" width="900" controls></video>
+  <br>
+  <sub><i>Nếu trình duyệt của bạn không hỗ trợ hiển thị thẻ video trực tiếp, bạn có thể <a href="https://github.com/nguyenthanhthe/snake-rl/raw/main/demo.mp4" target="_blank">Click vào đây để tải/xem video trực tiếp</a>.</i></sub>
 </p>
 
 ---
